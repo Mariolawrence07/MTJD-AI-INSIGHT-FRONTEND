@@ -17,6 +17,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Navbar from "./components/navbar";
 
+
 function App() {
   const { user, checkAuth, checkingAuth } = useUserStore();
 
@@ -39,7 +40,7 @@ function App() {
   if (checkingAuth) return <div>Loading.....</div>;
   return (
     <>
-      <Navbar />
+      <Navbar/>
       <div className="pt-20">
         <Routes>
           <Route path="/*" element={<Home />} />
