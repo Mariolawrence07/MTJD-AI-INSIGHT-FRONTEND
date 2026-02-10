@@ -12,7 +12,7 @@ import DocumentUpload from "./components/document-upload";
 import DashboardLayout from "./layouts/DashboardLayout";
 import DashboardOverview from "./pages/DashboardOverview";
 import DashboardPersonas from "./pages/DashboardPersonas";
-import Footer from "./components/footer";
+import Footer from "./components/Footer";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Navbar from "./components/navbar";
