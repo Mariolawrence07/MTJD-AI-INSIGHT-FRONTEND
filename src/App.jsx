@@ -1,6 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import Home from "./pages/Home";
-import Navbar from "./components/navbar";
+
 import Login from "./pages/Login";
 import Signup from "./pages/SignUp";
 import { useEffect } from "react";
@@ -15,6 +15,7 @@ import DashboardPersonas from "./pages/DashboardPersonas";
 import Footer from "./components/footer";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import Navbar from "./components/navbar";
 
 function App() {
   const { user, checkAuth, checkingAuth } = useUserStore();
