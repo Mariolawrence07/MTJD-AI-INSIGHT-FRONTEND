@@ -15,8 +15,7 @@ import DashboardPersonas from "./pages/DashboardPersonas";
 import Footer from "./components/Footer";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
-import Navbar from "./components/navbar";
-
+import Navbar from "./components/Navbar";
 
 
 function App() {
