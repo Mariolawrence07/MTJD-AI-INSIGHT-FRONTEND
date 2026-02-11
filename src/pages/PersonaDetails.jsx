@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { jsPDF } from "jspdf";
@@ -7,6 +5,7 @@ import autoTable from "jspdf-autotable";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Icon } from "@iconify/react";
+import api from "../lib/axios"; // ✅ use your axios instance
 
 export default function PersonaDetails() {
   const { id } = useParams();
@@ -24,41 +23,34 @@ export default function PersonaDetails() {
 
   const docRef = useRef(null);
 
-  const API_BASE_URL =
-    import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
-
   // ------------------ Load persona ------------------
   useEffect(() => {
     let cancelled = false;
 
     const run = async () => {
+      if (!id) return;
       try {
         setLoading(true);
         setError("");
 
-        const res = await fetch(`${API_BASE_URL}/api/personas/${id}`, {
-          credentials: "include",
-        });
-
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data?.message || "Failed to load persona");
-        }
-
-        const data = await res.json();
-        if (!cancelled) setPersona(data);
+        const res = await api.get(`/personas/${id}`); // ✅ Auth handled by axios interceptor
+        if (!cancelled) setPersona(res.data);
       } catch (e) {
-        if (!cancelled) setError(e?.message || "Something went wrong");
+        const msg =
+          e?.response?.data?.message ||
+          e?.message ||
+          "Failed to load persona";
+        if (!cancelled) setError(msg);
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
 
-    if (id) run();
+    run();
     return () => {
       cancelled = true;
     };
-  }, [id, API_BASE_URL]);
+  }, [id]);
 
   // ------------------ Normalize persona ------------------
   const ai = useMemo(() => {
@@ -96,22 +88,12 @@ export default function PersonaDetails() {
     setChatLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/ai/persona-refine`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          persona: aiView,
-          prompt,
-        }),
+      const res = await api.post("/ai/persona-refine", {
+        persona: aiView,
+        prompt,
       });
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData?.message || "AI request failed");
-      }
-
-      const data = await res.json();
+      const data = res.data;
 
       if (data?.refinedPersona) {
         setAiView(data.refinedPersona);
@@ -123,14 +105,12 @@ export default function PersonaDetails() {
         throw new Error("Invalid AI response");
       }
     } catch (e) {
+      const msg =
+        e?.response?.data?.message ||
+        e?.message ||
+        "Failed to update persona.";
       console.error("AI refine failed:", e);
-      setMessages((m) => [
-        ...m,
-        {
-          role: "assistant",
-          content: e?.message || "Failed to update persona.",
-        },
-      ]);
+      setMessages((m) => [...m, { role: "assistant", content: msg }]);
     } finally {
       setChatInput("");
       setChatLoading(false);
@@ -162,44 +142,32 @@ export default function PersonaDetails() {
     if (!aiView) return;
 
     const doc = new jsPDF({ unit: "pt", format: "a4" });
-
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
 
     const marginX = 40;
     const maxTextWidth = pageWidth - marginX * 2;
-
     let y = 44;
 
     const title = aiView?.name || "Persona";
     const summary = aiView?.summary || "No summary available.";
 
-    // ---------- TITLE (WRAPPED) ----------
+    // Title
     doc.setFont("helvetica", "bold");
     doc.setFontSize(18);
-
-    // Wrap title so it never exceeds paper width
     const titleLines = doc.splitTextToSize(String(title), maxTextWidth);
-
     doc.setTextColor(17, 24, 39);
     doc.text(titleLines, marginX, y);
+    y += titleLines.length * 22 + 6;
 
-    // Advance Y based on number of lines
-    y += titleLines.length * 22; // line height for title
-    y += 6;
-
-    // ---------- SUMMARY (WRAPPED) ----------
+    // Summary
     doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
-
     const summaryLines = doc.splitTextToSize(String(summary), maxTextWidth);
     doc.setTextColor(60, 60, 60);
     doc.text(summaryLines, marginX, y);
-
     y += summaryLines.length * 14 + 14;
-    doc.setTextColor(0, 0, 0);
 
-    // Helper for page breaks
     const ensureSpace = (needed = 120) => {
       if (y > pageHeight - needed) {
         doc.addPage();
@@ -211,59 +179,21 @@ export default function PersonaDetails() {
       {
         heading: "Extracted insights",
         rows: [
-          [
-            "Key themes",
-            asList(aiView?.extracted_insights?.key_themes).join("\n") || "—",
-          ],
-          [
-            "Audience patterns",
-            asList(aiView?.extracted_insights?.audience_patterns).join("\n") ||
-              "—",
-          ],
-          [
-            "Emotional signals",
-            asList(aiView?.extracted_insights?.emotional_signals).join("\n") ||
-              "—",
-          ],
-          [
-            "Opportunities",
-            asList(aiView?.extracted_insights?.opportunities).join("\n") || "—",
-          ],
-          [
-            "Contradictions",
-            asList(aiView?.extracted_insights?.contradictions).join("\n") ||
-              "—",
-          ],
+          ["Key themes", asList(aiView?.extracted_insights?.key_themes).join("\n") || "—"],
+          ["Audience patterns", asList(aiView?.extracted_insights?.audience_patterns).join("\n") || "—"],
+          ["Emotional signals", asList(aiView?.extracted_insights?.emotional_signals).join("\n") || "—"],
+          ["Opportunities", asList(aiView?.extracted_insights?.opportunities).join("\n") || "—"],
+          ["Contradictions", asList(aiView?.extracted_insights?.contradictions).join("\n") || "—"],
         ],
       },
       {
         heading: "Emotional profile",
         rows: [
-          [
-            "Key emotional drivers",
-            asList(aiView?.emotional_profile?.key_emotional_drivers).join(
-              "\n",
-            ) || "—",
-          ],
-          [
-            "Core values",
-            asList(aiView?.emotional_profile?.core_values).join("\n") || "—",
-          ],
-          [
-            "Core motivations",
-            asList(aiView?.emotional_profile?.core_motivations).join("\n") ||
-              "—",
-          ],
-          [
-            "Emotional barriers",
-            asList(aiView?.emotional_profile?.emotional_barriers).join("\n") ||
-              "—",
-          ],
-          [
-            "Decision triggers",
-            asList(aiView?.emotional_profile?.decision_triggers).join("\n") ||
-              "—",
-          ],
+          ["Key emotional drivers", asList(aiView?.emotional_profile?.key_emotional_drivers).join("\n") || "—"],
+          ["Core values", asList(aiView?.emotional_profile?.core_values).join("\n") || "—"],
+          ["Core motivations", asList(aiView?.emotional_profile?.core_motivations).join("\n") || "—"],
+          ["Emotional barriers", asList(aiView?.emotional_profile?.emotional_barriers).join("\n") || "—"],
+          ["Decision triggers", asList(aiView?.emotional_profile?.decision_triggers).join("\n") || "—"],
         ],
       },
     ];
@@ -271,7 +201,6 @@ export default function PersonaDetails() {
     sections.forEach((s, idx) => {
       ensureSpace(140);
 
-      // Section heading
       doc.setFont("helvetica", "bold");
       doc.setFontSize(13);
       doc.setTextColor(17, 24, 39);
@@ -303,12 +232,9 @@ export default function PersonaDetails() {
       });
 
       y = doc.lastAutoTable.finalY + 18;
-
-      // Spacer between sections
       if (idx < sections.length - 1) ensureSpace(140);
     });
 
-    // Footer
     const footer = `Generated: ${new Date().toLocaleString()}`;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
@@ -322,10 +248,7 @@ export default function PersonaDetails() {
   if (loading) {
     return (
       <div className="mx-auto max-w-5xl px-6 py-10 text-muted-foreground">
-        <Icon
-          icon="ph:spinner-gap"
-          className="mr-2 inline h-5 w-5 animate-spin"
-        />
+        <Icon icon="ph:spinner-gap" className="mr-2 inline h-5 w-5 animate-spin" />
         Loading persona...
       </div>
     );
@@ -351,7 +274,6 @@ export default function PersonaDetails() {
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-6 py-10 lg:grid-cols-[1fr_360px]">
-        {/* DOCUMENT (your UI stays the same) */}
         <div id="persona-document" ref={docRef} className="p-0">
           <div className="mb-6">
             <h1 className="text-3xl font-bold">{aiView?.name || "Persona"}</h1>
@@ -365,14 +287,8 @@ export default function PersonaDetails() {
             icon="ph:magnifying-glass"
             items={[
               ["Key themes", aiView?.extracted_insights?.key_themes],
-              [
-                "Audience patterns",
-                aiView?.extracted_insights?.audience_patterns,
-              ],
-              [
-                "Emotional signals",
-                aiView?.extracted_insights?.emotional_signals,
-              ],
+              ["Audience patterns", aiView?.extracted_insights?.audience_patterns],
+              ["Emotional signals", aiView?.extracted_insights?.emotional_signals],
               ["Opportunities", aiView?.extracted_insights?.opportunities],
               ["Contradictions", aiView?.extracted_insights?.contradictions],
             ]}
@@ -382,20 +298,11 @@ export default function PersonaDetails() {
             title="Emotional profile"
             icon="ph:heart"
             items={[
-              [
-                "Key emotional drivers",
-                aiView?.emotional_profile?.key_emotional_drivers,
-              ],
+              ["Key emotional drivers", aiView?.emotional_profile?.key_emotional_drivers],
               ["Core values", aiView?.emotional_profile?.core_values],
               ["Core motivations", aiView?.emotional_profile?.core_motivations],
-              [
-                "Emotional barriers",
-                aiView?.emotional_profile?.emotional_barriers,
-              ],
-              [
-                "Decision triggers",
-                aiView?.emotional_profile?.decision_triggers,
-              ],
+              ["Emotional barriers", aiView?.emotional_profile?.emotional_barriers],
+              ["Decision triggers", aiView?.emotional_profile?.decision_triggers],
             ]}
           />
 
@@ -412,7 +319,6 @@ export default function PersonaDetails() {
           </div>
         </div>
 
-        {/* CHAT */}
         <ChatPanel
           messages={messages}
           value={chatInput}
