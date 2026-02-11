@@ -17,7 +17,6 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Navbar from "./components/Navbar";
 
-
 function App() {
   const { user, checkAuth, checkingAuth } = useUserStore();
 
@@ -40,7 +39,7 @@ function App() {
   if (checkingAuth) return <div>Loading.....</div>;
   return (
     <>
-     <Navbar/>
+      <Navbar />
       <div className="pt-20">
         <Routes>
           <Route path="/*" element={<Home />} />
@@ -58,9 +57,18 @@ function App() {
             element={user ? <PersonaBuilder /> : <Navigate to="/login" />}
           />
 
-          <Route path="/dashboard" element={user ? <DashboardLayout /> : <Navigate to="/login" /> }>
-            <Route index element={user ? <DashboardOverview /> : <Navigate to="/login" /> } />
-            <Route path="insights" element={ user ? <DashboardPersonas /> : <Navigate to="/login" /> } />
+          <Route
+            path="/dashboard"
+            element={user ? <DashboardLayout /> : <Navigate to="/login" />}
+          >
+            <Route
+              index
+              element={user ? <DashboardOverview /> : <Navigate to="/login" />}
+            />
+            <Route
+              path="insights"
+              element={user ? <DashboardPersonas /> : <Navigate to="/login" />}
+            />
             {/* <Route path="surveys" element={<DashboardSurveys />} />
               <Route path="campaigns" element={<DashboardCampaigns />} /> */}
 
@@ -69,9 +77,18 @@ function App() {
 
           <Route
             path="/upload"
-            element={<DocumentUpload onBack={() => window.history.back()} />}
+            element={
+              user ? (
+                <DocumentUpload onBack={() => window.history.back()} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
           />
-          <Route path="/personas/:id" element={user ? <PersonaDetails /> : <Navigate to="/login" /> } />
+          <Route
+            path="/personas/:id"
+            element={user ? <PersonaDetails /> : <Navigate to="/login" />}
+          />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
         </Routes>
