@@ -12,7 +12,7 @@ const stripTokens = (data) => {
   return user;
 };
 
-export const useUserStore = create((set) => ({
+export const useUserStore = create((set, get) => ({
   user: null,
   loading: false,
   checkingAuth: true,
@@ -49,6 +49,43 @@ export const useUserStore = create((set) => ({
       set({ loading: false });
       toast.error(e.response?.data?.message || "Login failed");
       return { success: false };
+    }
+  },
+
+  // ✅ ADD THIS
+  forgotPassword: async ({ email }) => {
+    set({ loading: true });
+    try {
+      const res = await api.post("/auth/forgot-password", { email });
+      toast.success(res.data?.message || "Check your email for a reset link.");
+      set({ loading: false });
+      return { success: true };
+    } catch (e) {
+      const msg = e.response?.data?.message || "Unable to send reset email";
+      toast.error(msg);
+      set({ loading: false });
+      return { success: false, error: msg };
+    }
+  },
+
+  // ✅ ADD THIS (you already have /reset-password route)
+  resetPassword: async ({ token, newPassword, confirmPassword }) => {
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return { success: false };
+    }
+
+    set({ loading: true });
+    try {
+      const res = await api.post("/auth/reset-password", { token, newPassword });
+      toast.success(res.data?.message || "Password reset successful. Please log in.");
+      set({ loading: false });
+      return { success: true };
+    } catch (e) {
+      const msg = e.response?.data?.message || "Reset failed";
+      toast.error(msg);
+      set({ loading: false });
+      return { success: false, error: msg };
     }
   },
 
