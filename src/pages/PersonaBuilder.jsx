@@ -2,6 +2,7 @@ import React from "react";
 import { Card } from "../components/ui/card";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import DocumentUpload from "../components/document-upload";
+import { Link } from "react-router-dom";
 
 const PersonaBuilder = () => {
   return (
@@ -27,13 +28,13 @@ const PersonaBuilder = () => {
           </p>
 
           <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <a
-              href="/upload"
+            <Link
+              to="/upload"
               className="inline-flex items-center justify-center rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90"
             >
               <Icon icon="ph:upload-simple-fill" className="mr-2 h-5 w-5" />
               Upload Documents
-            </a>
+            </Link>
 
             <div className="text-sm text-muted-foreground">
               Supported: PDF, DOCX, TXT, CSV (depending on your upload component)
