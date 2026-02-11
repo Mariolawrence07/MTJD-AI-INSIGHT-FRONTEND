@@ -1,57 +1,71 @@
 import { Navigate, Route, Routes } from "react-router-dom";
-import Home from "./pages/Home";
-
-import Login from "./pages/Login";
-import Signup from "./pages/SignUp";
 import { useEffect } from "react";
 import { Toaster } from "react-hot-toast";
 import { useUserStore } from "./stores/useUserStore";
+
+import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
+
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import Signup from "./pages/SignUp";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+
 import PersonaBuilder from "./pages/PersonaBuilder";
 import PersonaDetails from "./pages/PersonaDetails";
 import DocumentUpload from "./components/document-upload";
+
 import DashboardLayout from "./layouts/DashboardLayout";
 import DashboardOverview from "./pages/DashboardOverview";
 import DashboardPersonas from "./pages/DashboardPersonas";
-import Footer from "./components/Footer";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
-import Navbar from "./components/Navbar";
 
 function App() {
-  const { user, checkAuth, checkingAuth } = useUserStore();
+  const user = useUserStore((s) => s.user);
+  const checkAuth = useUserStore((s) => s.checkAuth);
+  const checkingAuth = useUserStore((s) => s.checkingAuth);
 
   useEffect(() => {
-    let finished = false;
+    let cancelled = false;
 
-    const timeout = setTimeout(() => {
-      if (!finished) {
-        console.warn("Auth check timed out — forcing stop");
-        useUserStore.setState({ checkingAuth: false, user: null });
+    const run = async () => {
+      // Optional timeout safety (8s)
+      const timeoutId = setTimeout(() => {
+        if (!cancelled) {
+          console.warn("Auth check timed out");
+          // just stop spinner; user stays null
+          useUserStore.setState({ checkingAuth: false });
+        }
+      }, 8000);
+
+      try {
+        await checkAuth();
+      } finally {
+        clearTimeout(timeoutId);
       }
-    }, 100); // 8 seconds
+    };
 
-    checkAuth().finally(() => {
-      finished = true;
-      clearTimeout(timeout);
-    });
+    run();
+    return () => {
+      cancelled = true;
+    };
   }, [checkAuth]);
 
   if (checkingAuth) return <div>Loading.....</div>;
+
   return (
     <>
       <Navbar />
       <div className="pt-20">
         <Routes>
-          <Route path="/*" element={<Home />} />
+          {/* public */}
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
+          <Route path="/signup" element={!user ? <Signup /> : <Navigate to="/" />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
-          <Route
-            path="/login"
-            element={!user ? <Login /> : <Navigate to="/" />}
-          />
-          <Route
-            path="/signup"
-            element={!user ? <Signup /> : <Navigate to="/" />}
-          />
+          {/* protected */}
           <Route
             path="/person-generator"
             element={user ? <PersonaBuilder /> : <Navigate to="/login" />}
@@ -61,17 +75,8 @@ function App() {
             path="/dashboard"
             element={user ? <DashboardLayout /> : <Navigate to="/login" />}
           >
-            <Route
-              index
-              element={user ? <DashboardOverview /> : <Navigate to="/login" />}
-            />
-            <Route
-              path="insights"
-              element={user ? <DashboardPersonas /> : <Navigate to="/login" />}
-            />
-            {/* <Route path="surveys" element={<DashboardSurveys />} />
-              <Route path="campaigns" element={<DashboardCampaigns />} /> */}
-
+            <Route index element={<DashboardOverview />} />
+            <Route path="insights" element={<DashboardPersonas />} />
             <Route path="settings" element={<div>Settings</div>} />
           </Route>
 
@@ -85,13 +90,16 @@ function App() {
               )
             }
           />
+
           <Route
             path="/personas/:id"
             element={user ? <PersonaDetails /> : <Navigate to="/login" />}
           />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
+
+          {/* 404 fallback */}
+          <Route path="*" element={<Home />} />
         </Routes>
+
         <Toaster position="top-right" />
       </div>
       <Footer />
