@@ -14,7 +14,7 @@ export default function DocumentUpload({ onBack, onCreated }) {
   const [error, setError] = useState("");
 
   const API_BASE_URL =
-    import.meta?.env?.VITE_API_BASE_URL || "http://localhost:5001";
+    import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
 
   const handleDragOver = (e) => {
     e.preventDefault();
