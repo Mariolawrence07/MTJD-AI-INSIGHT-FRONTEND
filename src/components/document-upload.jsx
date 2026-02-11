@@ -60,6 +60,7 @@ export default function DocumentUpload({ onBack, onCreated }) {
       const res = await fetch(`${API_BASE_URL}/api/personas/upload`, {
         method: "POST",
         credentials: "include",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         body: formData,
       });
 
