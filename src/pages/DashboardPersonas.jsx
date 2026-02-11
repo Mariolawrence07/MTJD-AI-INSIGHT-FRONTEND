@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@iconify/react";
 import { Link, useNavigate } from "react-router-dom";
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
+import api from "@/lib/axios"; // ✅ use axios instance
 
 function safeText(v, fallback = "—") {
   if (typeof v === "string" && v.trim()) return v.trim();
@@ -15,7 +14,11 @@ function formatDate(iso) {
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  return d.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 function PersonaCard({ persona, onOpen }) {
@@ -23,9 +26,10 @@ function PersonaCard({ persona, onOpen }) {
   const summary = safeText(persona?.summary, "No summary yet.");
   const created = formatDate(persona?.createdAt);
 
-  // Optional fields (your model stores these sometimes)
-  const hasMessaging = persona?.messaging_pillars && Object.keys(persona.messaging_pillars).length > 0;
-  const hasEmotional = persona?.emotional_profile && Object.keys(persona.emotional_profile).length > 0;
+  const hasMessaging =
+    persona?.messaging_pillars && Object.keys(persona.messaging_pillars).length > 0;
+  const hasEmotional =
+    persona?.emotional_profile && Object.keys(persona.emotional_profile).length > 0;
 
   return (
     <Card
@@ -75,9 +79,7 @@ function PersonaCard({ persona, onOpen }) {
       </div>
 
       <div className="mt-5 flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">
-          Click to view details
-        </span>
+        <span className="text-xs text-muted-foreground">Click to view details</span>
         <span className="inline-flex items-center gap-2 text-sm font-medium text-primary">
           Open
           <Icon icon="ph:arrow-right-bold" className="h-4 w-4" />
@@ -95,50 +97,45 @@ export default function DashboardPersonas() {
   const [errMsg, setErrMsg] = useState("");
   const [q, setQ] = useState("");
 
+  const loadPersonas = useCallback(async () => {
+    setLoading(true);
+    setErrMsg("");
+
+    try {
+      // ✅ Auth handled automatically by axios (Bearer token + refresh interceptor)
+      const res = await api.get("/personas"); // no trailing slash
+      const data = res.data;
+
+      setPersonas(Array.isArray(data) ? data : []);
+    } catch (e) {
+      const status = e?.response?.status;
+      const msg =
+        e?.response?.data?.message ||
+        e?.message ||
+        "Failed to load personas";
+
+      // Helpful message for auth failures
+      if (status === 401) {
+        setErrMsg("You’re not logged in (or your session expired). Please login again.");
+      } else {
+        setErrMsg(msg);
+      }
+      setPersonas([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     let mounted = true;
-
-    async function load() {
-      setLoading(true);
-      setErrMsg("");
-
-      try {
-        // If you use cookie auth, keep credentials: "include".
-        // If you use Bearer token, add Authorization header instead.
-        const res = await fetch(`${API_BASE_URL}/api/personas/`, {
-          method: "GET",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-        console.log("GET", `${API_BASE_URL}/api/personas`, res.status);
-
-
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(`Failed to load personas (${res.status}): ${text}`);
-        }
-
-        const data = await res.json();
-            console.log(data);
-
-        if (!mounted) return;
-        setPersonas(Array.isArray(data) ? data : []);
-      } catch (e) {
-        if (!mounted) return;
-        setErrMsg(e?.message || "Failed to load personas");
-      } finally {
-        if (!mounted) return;
-        setLoading(false);
-      }
-    }
-
-    load();
+    (async () => {
+      if (!mounted) return;
+      await loadPersonas();
+    })();
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [loadPersonas]);
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
@@ -147,7 +144,11 @@ export default function DashboardPersonas() {
     return personas.filter((p) => {
       const name = (p?.name || "").toLowerCase();
       const summary = (p?.summary || "").toLowerCase();
-      return name.includes(query) || summary.includes(query) || String(p?.id).includes(query);
+      return (
+        name.includes(query) ||
+        summary.includes(query) ||
+        String(p?.id).includes(query)
+      );
     });
   }, [personas, q]);
 
@@ -173,7 +174,8 @@ export default function DashboardPersonas() {
           <Button
             variant="secondary"
             className="px-6 py-6"
-            onClick={() => window.location.reload()}
+            onClick={loadPersonas}
+            disabled={loading}
           >
             <Icon icon="ph:arrows-clockwise-bold" className="mr-2 h-5 w-5" />
             Refresh
@@ -225,10 +227,15 @@ export default function DashboardPersonas() {
             <div>
               <p className="font-semibold">Couldn’t load Insights</p>
               <p className="mt-1 text-sm text-muted-foreground">{errMsg}</p>
-              <div className="mt-4">
-                <Button variant="secondary" onClick={() => window.location.reload()}>
+
+              <div className="mt-4 flex gap-2">
+                <Button variant="secondary" onClick={loadPersonas}>
                   Try again
                 </Button>
+
+                {errMsg.toLowerCase().includes("login") && (
+                  <Button onClick={() => navigate("/login")}>Go to login</Button>
+                )}
               </div>
             </div>
           </div>
@@ -262,7 +269,7 @@ export default function DashboardPersonas() {
             <PersonaCard
               key={p.id}
               persona={p}
-              onOpen={() => navigate(`/personas/${p.id}`)} // ✅ details route
+              onOpen={() => navigate(`/personas/${p.id}`)}
             />
           ))}
         </div>
