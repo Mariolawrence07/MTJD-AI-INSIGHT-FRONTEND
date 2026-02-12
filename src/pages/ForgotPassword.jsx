@@ -7,7 +7,7 @@ import { Loader2, Mail } from "lucide-react";
 import { useUserStore } from "../stores/useUserStore";
 
 export default function ForgotPassword() {
-  const { forgotPassword } = useUserStore();
+   const forgotPassword = useUserStore((s) => s.forgotPassword);
 
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
